@@ -25,14 +25,14 @@ async def roulette(ctx, *args):
 
 
 async def _delete_old_messages(channel):
-    """5分以上前のメッセージを削除し、削除件数を返す"""
+    """3時間以上前のメッセージを削除し、削除件数を返す"""
     try:
         if not channel:
             print(f'チャンネルが見つかりません')
             return 0
         
-        # 5分以前の時刻
-        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+        # 3時間以前の時刻
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=3)
         print(f'[DEBUG] cutoff_time (UTC): {cutoff_time}')
         deleted_count = 0
         
@@ -66,7 +66,7 @@ async def _delete_old_messages(channel):
 
 @bot.command()
 async def start_polling(ctx):
-    """現在のチャンネルに対して1分間隔のメッセージ削除ポーリングを開始"""
+    """現在のチャンネルに対して30分間隔のメッセージ削除ポーリングを開始"""
     channel_id = ctx.channel.id
     print(f'[DEBUG] start_polling: チャンネルID {channel_id}')
     
@@ -77,7 +77,7 @@ async def start_polling(ctx):
     # チャンネルIDをアクティブなリストに追加
     active_delete_channels.add(channel_id)
     print(f'[DEBUG] チャンネル登録: {active_delete_channels}')
-    await ctx.send(f'このチャンネルの1分間隔削除ポーリングを開始しました')
+    await ctx.send(f'このチャンネルの30分間隔削除ポーリングを開始しました')
     
     # 初回削除を即実行
     deleted_count = await _delete_old_messages(ctx.channel)
@@ -108,9 +108,9 @@ async def on_ready():
         print(f'メッセージ削除ポーリングタスク既に動作中')
 
 
-@tasks.loop(minutes=1)
+@tasks.loop(minutes=30)
 async def delete_old_messages_task():
-    """1分ごとに全アクティブチャンネルの古いメッセージを削除"""
+    """30分ごとに全アクティブチャンネルの古いメッセージを削除"""
     print(f'[DEBUG] ポーリング実行: アクティブチャンネル {list(active_delete_channels)}')
     for channel_id in list(active_delete_channels):
         channel = bot.get_channel(channel_id)
