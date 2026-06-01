@@ -24,6 +24,25 @@ async def roulette(ctx, *args):
     await ctx.send(f'Roulette結果: {selected_item}')
 
 
+@bot.command()
+async def dice(ctx, *args):
+    """0から指定された数字までのランダムな数字をサイコロで出力"""
+    print(f'Start dice {args}!')
+    
+    if not args:
+        # 引数がない場合は0～999
+        result = random.randint(0, 999)
+    else:
+        try:
+            max_value = int(args[0])
+            result = random.randint(0, max_value)
+        except ValueError:
+            await ctx.send(f'無効な引数です。数字を入力してください。')
+            return
+    
+    await ctx.send(f'🎲{result}')
+
+
 async def _delete_old_messages(channel):
     """3時間以上前のメッセージを削除し、削除件数を返す"""
     try:
