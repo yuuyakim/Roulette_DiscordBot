@@ -35,18 +35,21 @@ async def _delete_old_messages(channel):
         cutoff_time = datetime.utcnow() - timedelta(minutes=5)
         deleted_count = 0
         
-        async for message in channel.history(limit=None, oldest_first=False):
-            # メッセージがカットオフ時刻より古い場合
-            if message.created_at < cutoff_time:
-                try:
-                    await message.delete()
-                    deleted_count += 1
-                except discord.Forbidden:
-                    print(f'メッセージを削除できません (権限なし): {message.id}')
-                    break
-                except discord.HTTPException as e:
-                    print(f'メッセージ削除エラー: {e}')
-                    break
+        async for message in channel.history(limit=None, oldest_first=True):
+            # メッセージがカットオフ時刻以降の場合は終了
+            if message.created_at >= cutoff_time:
+                break
+            
+            # 5分以上前のメッセージを削除
+            try:
+                await message.delete()
+                deleted_count += 1
+            except discord.Forbidden:
+                print(f'メッセージを削除できません (権限なし): {message.id}')
+                break
+            except discord.HTTPException as e:
+                print(f'メッセージ削除エラー: {e}')
+                break
         
         if deleted_count > 0:
             print(f'{deleted_count} 件のメッセージを削除しました')
@@ -58,7 +61,7 @@ async def _delete_old_messages(channel):
 
 @bot.command()
 async def start_polling(ctx):
-    """現在のチャンネルに対して30分間隔のメッセージ削除ポーリングを開始"""
+    """現在のチャンネルに対して1分間隔のメッセージ削除ポーリングを開始"""
     channel_id = ctx.channel.id
     
     if channel_id in active_delete_channels:
@@ -67,7 +70,7 @@ async def start_polling(ctx):
     
     # チャンネルIDをアクティブなリストに追加
     active_delete_channels.add(channel_id)
-    await ctx.send(f'このチャンネルの30分間隔削除ポーリングを開始しました')
+    await ctx.send(f'このチャンネルの1分間隔削除ポーリングを開始しました')
     
     # 初回削除を即実行
     deleted_count = await _delete_old_messages(ctx.channel)
