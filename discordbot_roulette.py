@@ -25,14 +25,14 @@ async def roulette(ctx, *args):
 
 
 async def _delete_old_messages(channel):
-    """12時間以上前のメッセージを削除し、削除件数を返す"""
+    """5分以上前のメッセージを削除し、削除件数を返す"""
     try:
         if not channel:
             print(f'チャンネルが見つかりません')
             return 0
         
-        # 12時間以前の時刻
-        cutoff_time = datetime.utcnow() - timedelta(hours=12)
+        # 5分以前の時刻
+        cutoff_time = datetime.utcnow() - timedelta(minutes=5)
         deleted_count = 0
         
         async for message in channel.history(limit=None, oldest_first=False):
@@ -95,9 +95,9 @@ async def on_ready():
     print(f'メッセージ削除ポーリングタスクを開始しました')
 
 
-@tasks.loop(minutes=30)
+@tasks.loop(minutes=1)
 async def delete_old_messages_task():
-    """30分ごとに全アクティブチャンネルの古いメッセージを削除"""
+    """1分ごとに全アクティブチャンネルの古いメッセージを削除"""
     for channel_id in list(active_delete_channels):
         channel = bot.get_channel(channel_id)
         if channel:
