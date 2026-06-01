@@ -1,7 +1,7 @@
 import random
 import discord
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from discord.ext import commands, tasks
 from keep import keep_alive
@@ -32,12 +32,17 @@ async def _delete_old_messages(channel):
             return 0
         
         # 5分以前の時刻
-        cutoff_time = datetime.utcnow() - timedelta(minutes=5)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+        print(f'[DEBUG] cutoff_time (UTC): {cutoff_time}')
         deleted_count = 0
         
         async for message in channel.history(limit=None, oldest_first=True):
+            # メッセージのタイムスタンプを確認
+            print(f'[DEBUG] message.created_at: {message.created_at} (type: {type(message.created_at)}, tzinfo: {message.created_at.tzinfo})')
+            
             # メッセージがカットオフ時刻以降の場合は終了
             if message.created_at >= cutoff_time:
+                print(f'[DEBUG] カットオフ時刻に到達: {message.created_at} >= {cutoff_time}')
                 break
             
             # 5分以上前のメッセージを削除
