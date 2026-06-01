@@ -1,12 +1,16 @@
 import random
 import discord
 import os
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from discord.ext import commands
+from discord.ext import commands, tasks
 from keep import keep_alive
 
 load_dotenv()
 TOKEN=os.getenv("TOKEN")
+
+# 削除対象のチャンネルを管理するセット
+active_delete_channels = set()
 
 intents = discord.Intents.all()
 intents.message_content = True
@@ -18,6 +22,90 @@ async def roulette(ctx, *args):
     print(f'Start roulette {args}!')
     selected_item = select_random(*args)
     await ctx.send(f'Roulette結果: {selected_item}')
+
+
+async def _delete_old_messages(channel):
+    """12時間以上前のメッセージを削除し、削除件数を返す"""
+    try:
+        if not channel:
+            print(f'チャンネルが見つかりません')
+            return 0
+        
+        # 12時間以前の時刻
+        cutoff_time = datetime.utcnow() - timedelta(hours=12)
+        deleted_count = 0
+        
+        async for message in channel.history(limit=None, oldest_first=False):
+            # メッセージがカットオフ時刻より古い場合
+            if message.created_at < cutoff_time:
+                try:
+                    await message.delete()
+                    deleted_count += 1
+                except discord.Forbidden:
+                    print(f'メッセージを削除できません (権限なし): {message.id}')
+                    break
+                except discord.HTTPException as e:
+                    print(f'メッセージ削除エラー: {e}')
+                    break
+        
+        if deleted_count > 0:
+            print(f'{deleted_count} 件のメッセージを削除しました')
+        return deleted_count
+    except Exception as e:
+        print(f'削除処理エラー: {e}')
+        return 0
+
+
+@bot.command()
+async def start_polling(ctx):
+    """現在のチャンネルに対して30分間隔のメッセージ削除ポーリングを開始"""
+    channel_id = ctx.channel.id
+    
+    if channel_id in active_delete_channels:
+        await ctx.send(f'このチャンネルは既に削除ポーリングが動作中です')
+        return
+    
+    # チャンネルIDをアクティブなリストに追加
+    active_delete_channels.add(channel_id)
+    await ctx.send(f'このチャンネルの30分間隔削除ポーリングを開始しました')
+    
+    # 初回削除を即実行
+    deleted_count = await _delete_old_messages(ctx.channel)
+    await ctx.send(f'初回削除完了: {deleted_count} 件のメッセージを削除しました')
+
+
+@bot.command()
+async def stop_polling(ctx):
+    """現在のチャンネルのメッセージ削除ポーリングを停止"""
+    channel_id = ctx.channel.id
+    
+    if channel_id not in active_delete_channels:
+        await ctx.send(f'このチャンネルのポーリングは動作していません')
+        return
+    
+    # チャンネルIDをアクティブなリストから削除
+    active_delete_channels.discard(channel_id)
+    await ctx.send(f'このチャンネルの削除ポーリングを停止しました')
+
+
+@bot.event
+async def on_ready():
+    print(f'{bot.user} がログインしました')
+    delete_old_messages_task.start()
+    print(f'メッセージ削除ポーリングタスクを開始しました')
+
+
+@tasks.loop(minutes=30)
+async def delete_old_messages_task():
+    """30分ごとに全アクティブチャンネルの古いメッセージを削除"""
+    for channel_id in list(active_delete_channels):
+        channel = bot.get_channel(channel_id)
+        if channel:
+            await _delete_old_messages(channel)
+        else:
+            # チャンネルが見つからない場合は削除
+            active_delete_channels.discard(channel_id)
+
 
 
 def select_random(*args):
