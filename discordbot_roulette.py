@@ -44,14 +44,14 @@ async def dice(ctx, *args):
 
 
 async def _delete_old_messages(channel):
-    """3時間以上前のメッセージを削除し、削除件数を返す"""
+    """30分以上前のメッセージを削除し、削除件数を返す"""
     try:
         if not channel:
             print(f'チャンネルが見つかりません')
             return 0
         
-        # 3時間以前の時刻
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=3)
+        # 30分以前の時刻
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=30)
         print(f'[DEBUG] cutoff_time (UTC): {cutoff_time}')
         deleted_count = 0
         
